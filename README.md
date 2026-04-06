@@ -1,4 +1,4 @@
-# Secure CI/CD Pipeline with Docker, Trivy & Kubernetes
+# CI/CD Pipeline with Automated Docker Security Scanning and Deployment to Kubernetes
 
 ## Project Overview
 
@@ -21,6 +21,19 @@ Only secure images are allowed to proceed to deployment.
 
 You can find the complete source code here:
 [🔗 View Source Code](https://github.com/Prutha-Dongre/my-devsecops-app)
+
+#### Project Structure
+
+```
+my-devsecops-app/
+├── app.js
+├── Dockerfile
+├── Jenkinsfile
+├── package.json
+└── k8s/
+    ├── deployment.yaml
+    └── service.yaml
+```
 
 ---
 
@@ -68,6 +81,8 @@ sudo systemctl enable jenkins
 sudo systemctl status jenkins
 ```
 
+![jenkins master](./pictures/jenkins-master.png)
+
 * Access Jenkins:
 
 ```
@@ -82,18 +97,27 @@ Go to **Manage Jenkins → Plugins**
 
 Install:
 
-* Git Plugin
-* Pipeline Plugin
-* Docker Pipeline Plugin
-* SSH Build Agents Plugin
+- **Git Plugin** → to pull code from GitHub
+- **Pipeline Plugin** → to define CI/CD workflow
+- **Docker Plugin** → to build & push images
+- **SSH Plugin** → to connect Jenkins with agent node
+
+![pligins](./pictures/pligin-1.png)
+![pligins](./pictures/plugin-2.png)
 
 ---
 
 ### 🟢 Step 3: Create Jenkins Agent (Node Server)
 
-* Launch EC2 instance (c7i-flex.large)
+- Master should not run heavy workloads
+- Agent handles:
+    - Docker builds
+    - Security scanning
+    - Kubernetes deployment
 
-Install required tools:
+1.Launch EC2 instance (c7i-flex.large)
+
+2.Install required tools:
 
 #### Install Java
 
@@ -110,6 +134,7 @@ sudo apt install docker.io -y
 sudo systemctl start docker
 sudo usermod -aG docker ubuntu
 ```
+![docker node](./pictures/docker-node.png)
 
 #### Install Trivy
 
@@ -142,18 +167,33 @@ curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-
 sudo install minikube-linux-amd64 /usr/local/bin/minikube
 ```
 
+![services on node](./pictures/node.png)
+
 ---
 
 ### 🟢 Step 4: Start Minikube
 
+Start local Kubernetes cluster
 ```bash
 minikube start --driver=docker --cpus=2 --memory=3000mb
 kubectl get nodes
 ```
 
+![Start Minikube](./pictures/start-minicube.png)
+![get nodes](./pictures/get-nodes.png)
+
+Why this is needed:
+
+- Kubernetes is used for container orchestration
+- Minikube provides a local cluster for testing
+- Needed to deploy and run application
+
 ---
 
 ### 🟢 Step 5: Add Node in Jenkins
+Jenkins needs to send jobs to 
+
+Without this, pipeline cannot run on node
 
 * Go to **Manage Jenkins → Nodes → New Node**
 * Configure:
@@ -163,16 +203,26 @@ kubectl get nodes
   * Launch method: SSH
 * Add SSH credentials (.pem key)
 
+![add Node in Jenkins](./pictures/add-node.png)
+
+
 ---
 
 ### 🟢 Step 6: Increase Storage Volume for node server
 
+Docker images + builds consume space
+
+Prevents pipeline failure due to disk full issue
+
 * Go to AWS EC2 → Volumes(jenkins node server)
 * Modify volume from **8GB → 20GB**
+![increase volume](./pictures/increase-vom.png)
 
 ---
 
 ### 🟢 Step 7: Extend Disk
+
+Extend partition using growpart & resize2fs
 
 ```bash
 sudo growpart /dev/nvme0n1 1
@@ -180,6 +230,12 @@ sudo resize2fs /dev/nvme0n1p1
 
 df -h
 ```
+
+AWS volume increase is not automatically applied
+
+This is Required to actually use new storage
+
+![Extend Disk](./pictures/Extend%20Disk.png)
 
 ---
 
@@ -190,24 +246,43 @@ sudo systemctl restart jenkins
 ```
 
 * In Jenkins UI → Bring node online
+![online-node](./pictures/online-node.png)
 
 ---
 
 ### 🟢 Step 9: Create Pipeline Job
 
 * Click **New Item → Pipeline**
-* Add Jenkinsfile
+* Pipeline script from SCM  → Add git url → Branch Specifier
+
+![jenkins-pipeline](./pictures/jenkins-pipeline.png)
+
+Pipeline Defines entire automation flow:
+
+- Build
+- Scan
+- Push
+- Deploy
 
 ---
 
 ### 🟢 Step 10: Create Docker Hub Access Token
 
+Required for secure authentication
+
+Avoids using password (best practice)
+
 * Go to Docker Hub → Security
 * Create token (Read & Write)
+![create PAT](./pictures/create%20PAT.png)
 
 ---
 
 ### 🟢 Step 11: Add Credentials in Jenkins
+
+Jenkins needs authentication to push images
+
+Keeps credentials secure (not hardcoded)
 
 * Manage Jenkins → Credentials
 
@@ -216,6 +291,7 @@ Add:
 * Username: Docker Hub username
 * Password: Access token
 * ID: `docker-creds`
+![create-cred](./pictures/create-cred.png)
 
 ---
 
@@ -235,22 +311,34 @@ Pipeline stages:
 
 ### 🟢 Step 13: Access Application
 
+**port-forward**
 ```bash
 kubectl port-forward service/myapp-service 8080:80
 ```
 
+![port-forward](./pictures/port-forward.png)
+
+**SSH tunneling**
 Open new terminal on your laptop (not EC2)
 
 Run:
 ```
 ssh -i your-key.pem -L 8080:localhost:8080 ubuntu@3.101.123.177
 ```
+![cmd-on-local](./pictures/cmd-on-local.png)
 
 Open in browser:
 
 ```
 http://localhost:8080
 ```
+
+Why this is needed:
+
+- Minikube runs inside EC2 (not public)
+- Port-forward exposes app locally
+- SSH tunneling connects:
+  - Laptop → EC2 → Kubernetes
 
 What will happen
 
@@ -262,6 +350,79 @@ Simple flow
 ```
 Laptop → SSH → EC2 → Port-forward → App
 ```
+
+![Access Application](./pictures/Access%20Application.png)
+
+---
+
+## Security Validation (Before & After Fix)
+
+This project demonstrates how the CI/CD pipeline enforces security by blocking vulnerable images.
+
+---
+
+### Build 1: FAILED (Vulnerable Image)
+
+- Base image had vulnerabilities  
+- Trivy detected issues  
+- Pipeline failed automatically  
+
+**Trivy Result:**
+- Vulnerabilities: **2**
+- Severity: CRITICAL detected
+
+
+**DockerFile used:-**
+
+```
+FROM node:20-alpine3.19
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --only=production && npm cache clean --force
+COPY . .
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+EXPOSE 3000
+CMD ["node", "app.js"]
+```
+
+**Scan Report:**
+
+![failed scan](./pictures/vulnarable.png)
+
+
+#### Fix Applied
+
+- Updated Dockerfile to use a more secure base image  
+- Used minimal and updated Alpine version  
+- Reduced attack surface  
+
+
+
+### Build 2: SUCCESS (Secure Image)
+
+- No vulnerabilities detected  
+- Pipeline passed successfully  
+- Deployment completed  
+
+**Trivy Result:**
+- Vulnerabilities: **0**
+- Secrets: 0
+
+**DockerFile used:-**
+```
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 3000
+CMD ["node", "app.js"]
+```
+
+**Scan Report:**
+
+![success scan](./pictures/not-vulnarable.png)
 
 ---
 
@@ -308,31 +469,6 @@ spec:
     - port: 80
       targetPort: 3000
       nodePort: 30007
-```
-
----
-
-## Scan Report Sample
-
-Include screenshot from Jenkins showing:
-
-* Image name
-* Vulnerabilities = 0
-* Secrets = 0
-
----
-
-## Project Structure
-
-```
-my-devsecops-app/
-├── app.js
-├── Dockerfile
-├── Jenkinsfile
-├── package.json
-└── k8s/
-    ├── deployment.yaml
-    └── service.yaml
 ```
 
 ---
