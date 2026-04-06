@@ -1,13 +1,13 @@
 # CI/CD Pipeline with Automated Docker Security Scanning and Deployment to Kubernetes
 
-## Project Overview
+## ➤ Project Overview
 
 This project demonstrates a complete **DevSecOps CI/CD pipeline** where Docker images are scanned for vulnerabilities before being deployed to Kubernetes.
 Only secure images are allowed to proceed to deployment.
 
 ---
 
-## Tech Stack
+## ➤ Tech Stack
 
 * Jenkins (CI/CD)
 * Docker (Containerization)
@@ -17,7 +17,12 @@ Only secure images are allowed to proceed to deployment.
 
 ---
 
-## GitHub Repository
+## ➤ Architecture Diagram
+![Architecture Diagram](./pictures/architecture.png) 
+
+---
+
+## ➤ GitHub Repository
 
 You can find the complete source code here:
 [🔗 View Source Code](https://github.com/Prutha-Dongre/my-devsecops-app)
@@ -37,7 +42,7 @@ my-devsecops-app/
 
 ---
 
-## Security Gating Logic
+## ➤ Security Gating Logic
 
 The pipeline integrates **Trivy** to enforce security:
 
@@ -53,9 +58,9 @@ trivy image --severity CRITICAL --exit-code 1 <image>
 
 ---
 
-## Detailed Implementation Steps
+## ➤ Detailed Implementation Steps
 
-### 🟢 Step 1: Create Jenkins Master Server
+### ➤ Step 1: Create Jenkins Master Server
 
 * Launch EC2 instance (t3.micro)
 * Install Java
@@ -91,7 +96,7 @@ http://<EC2-IP>:8080
 
 ---
 
-### 🟢 Step 2: Install Required Plugins
+### ➤ Step 2: Install Required Plugins
 
 Go to **Manage Jenkins → Plugins**
 
@@ -107,7 +112,7 @@ Install:
 
 ---
 
-### 🟢 Step 3: Create Jenkins Agent (Node Server)
+### ➤ Step 3: Create Jenkins Agent (Node Server)
 
 - Master should not run heavy workloads
 - Agent handles:
@@ -171,7 +176,10 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
 ---
 
-### 🟢 Step 4: Start Minikube
+![ec2](./pictures/ec2.png)
+---
+
+### ➤ Step 4: Start Minikube
 
 Start local Kubernetes cluster
 ```bash
@@ -190,7 +198,7 @@ Why this is needed:
 
 ---
 
-### 🟢 Step 5: Add Node in Jenkins
+### ➤ Step 5: Add Node in Jenkins
 Jenkins needs to send jobs to 
 
 Without this, pipeline cannot run on node
@@ -208,7 +216,7 @@ Without this, pipeline cannot run on node
 
 ---
 
-### 🟢 Step 6: Increase Storage Volume for node server
+### ➤ Step 6: Increase Storage Volume for node server
 
 Docker images + builds consume space
 
@@ -220,7 +228,7 @@ Prevents pipeline failure due to disk full issue
 
 ---
 
-### 🟢 Step 7: Extend Disk
+### ➤ Step 7: Extend Disk
 
 Extend partition using growpart & resize2fs
 
@@ -239,7 +247,7 @@ This is Required to actually use new storage
 
 ---
 
-### 🟢 Step 8: Restart Node & Bring Online
+### ➤ Step 8: Restart Node & Bring Online
 
 ```bash
 sudo systemctl restart jenkins
@@ -250,7 +258,7 @@ sudo systemctl restart jenkins
 
 ---
 
-### 🟢 Step 9: Create Pipeline Job
+### ➤ Step 9: Create Pipeline Job
 
 * Click **New Item → Pipeline**
 * Pipeline script from SCM  → Add git url → Branch Specifier
@@ -266,7 +274,7 @@ Pipeline Defines entire automation flow:
 
 ---
 
-### 🟢 Step 10: Create Docker Hub Access Token
+### ➤ Step 10: Create Docker Hub Access Token
 
 Required for secure authentication
 
@@ -278,7 +286,7 @@ Avoids using password (best practice)
 
 ---
 
-### 🟢 Step 11: Add Credentials in Jenkins
+### ➤ Step 11: Add Credentials in Jenkins
 
 Jenkins needs authentication to push images
 
@@ -295,7 +303,7 @@ Add:
 
 ---
 
-### 🟢 Step 12: Run Pipeline
+### ➤ Step 12: Run Pipeline
 
 Click **Build Now**
 
@@ -309,7 +317,7 @@ Pipeline stages:
 
 ---
 
-### 🟢 Step 13: Access Application
+### ➤ Step 13: Access Application
 
 **port-forward**
 ```bash
@@ -355,7 +363,7 @@ Laptop → SSH → EC2 → Port-forward → App
 
 ---
 
-## Security Validation (Before & After Fix)
+## ➤ Security Validation (Before & After Fix)
 
 This project demonstrates how the CI/CD pipeline enforces security by blocking vulnerable images.
 
@@ -426,7 +434,7 @@ CMD ["node", "app.js"]
 
 ---
 
-## ☸️ Kubernetes Configuration
+## ➤ Kubernetes Configuration
 
 ### deployment.yaml
 
@@ -473,7 +481,7 @@ spec:
 
 ---
 
-## Final Output
+## ➤ Final Output
 
 * Jenkins Pipeline → SUCCESS
 * Docker Image → Built & Pushed
@@ -483,7 +491,7 @@ spec:
 
 ---
 
-## Key Learnings
+## ➤ Key Learnings
 
 * Implemented secure CI/CD pipeline
 * Integrated security scanning (Trivy)
@@ -492,6 +500,8 @@ spec:
 
 ---
 
-## Conclusion
+## ➤ Conclusion
 
 This project demonstrates a **secure DevSecOps pipeline** ensuring only vulnerability-free Docker images are deployed to Kubernetes, improving overall system security and reliability.
+
+---
